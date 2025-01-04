@@ -63,7 +63,7 @@ static const struct mqtt_connect_client_info_t mqtt_client_info =
 {
   "pico_w_test1",
   "user", /* user */
-  "pass", /* pass */
+  "password", /* password */
   100,  /* keep alive */
   "topic/will", /* will_topic */
   "I will leave", /* will_msg */
@@ -136,7 +136,6 @@ mqtt_example_init(void)
           LWIP_CONST_CAST(void*, &mqtt_client_info));
   printf("mqtt_set_inpub_callback 0x%x\n",mqtt_set_inpub_callback);
   
-  
   mqtt_client_connect(mqtt_client,
           &mqtt_ip, mqtt_port,
           mqtt_connection_cb, LWIP_CONST_CAST(void*, &mqtt_client_info),
@@ -181,8 +180,6 @@ int main() {
         return 1;
     } else {
         printf("Connected.\n");
-	     
- 
 			
         printf("mqtt_port = %d &mqtt_port 0x%x\n",mqtt_port,&mqtt_port);
         printf("mqtt_ip = 0x%x &mqtt_ip = 0x%x\n",mqtt_ip,&mqtt_ip);
