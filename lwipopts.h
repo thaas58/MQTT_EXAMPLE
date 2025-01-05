@@ -7,6 +7,7 @@
 // This example uses a common include to avoid repetition
 #include "lwipopts_examples_common.h"
 
+// The line below fixes a TCP *** PANIC *** issue that can be seen with later SDK's.
 #define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
 
 #if !NO_SYS
