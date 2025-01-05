@@ -200,10 +200,10 @@ int main() {
 #endif
 
     while(true) {
+        static uint32_t counter = 1;
 #if USE_LED
         static absolute_time_t led_time;
         static int led_on = true;
-        static uint32_t counter = 1;
 
         // Invert the led
         if (absolute_time_diff_us(get_absolute_time(), led_time) < 0) {
