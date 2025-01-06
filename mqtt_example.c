@@ -223,7 +223,7 @@ int main() {
           sprintf(buffer, "%u", counter);
           u8_t qos    = 2;
           u8_t retain = 0;
-          mqtt_publish(mqtt_client, "topic/pico_w_test/counter", buffer, strlen(buffer), qos, retain, mqtt_request_cb, &mqtt_client_info);
+          mqtt_publish(mqtt_client, "topic/pico_w_test/counter", buffer, strlen(buffer), qos, retain, mqtt_request_cb, (void *)&mqtt_client_info);
         }
         // the following #ifdef is only here so this same example can be used in multiple modes;
         // you do not need it in your code
