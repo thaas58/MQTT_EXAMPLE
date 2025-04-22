@@ -62,13 +62,13 @@ static mqtt_client_t* mqtt_client;
 static const struct mqtt_connect_client_info_t mqtt_client_info =
 {
   "pico_w_test1",
-  "user", /* user */
-  "password", /* password */
+  USER_NAME, /* user */
+  USER_PW, /* password */
   100,  /* keep alive */
   "topic/will", /* will_topic */
-  "I will leave", /* will_msg */
+  "pico_w_test1 disconnected!", /* will_msg */
   0,    /* will_qos */
-  1     /* will_retain */
+  0     /* will_retain */
 #if LWIP_ALTCP && LWIP_ALTCP_TLS
   , NULL
 #endif
@@ -119,6 +119,11 @@ mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t st
             "topic_qos0", 0,
             mqtt_request_cb, LWIP_CONST_CAST(void*, client_info),
             1);
+
+    mqtt_sub_unsub(client,
+            "topic/TEST_PUB", 0,
+            mqtt_incoming_publish_cb, LWIP_CONST_CAST(void*, client_info),
+            1);        
   }
 }
 #endif /* LWIP_TCP */

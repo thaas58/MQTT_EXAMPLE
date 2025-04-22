@@ -26,6 +26,8 @@ if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
     else()
         set(WIFI_SSID "${WIFI_SSID}" CACHE INTERNAL "WiFi SSID")
         set(WIFI_PASSWORD "${WIFI_PASSWORD}" CACHE INTERNAL "WiFi password")
+        set(USER_NAME "${USER_NAME}" CACHE INTERNAL "MQTT user name")
+        set(USER_PW "${USER_PW}" CACHE INTERNAL "MQTT user password")
 
         if ("${WIFI_SSID}" STREQUAL "")
             message("Skipping build as WIFI_SSID is not defined")
@@ -41,6 +43,8 @@ if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
             target_compile_definitions(mqtt_example PRIVATE
             WIFI_SSID=\"${WIFI_SSID}\"
             WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
+            USER_NAME=\"${USER_NAME}\"
+            USER_PW=\"${USER_PW}\"
             TEST_MQTT_SERVER_IP=\"${TEST_MQTT_SERVER_IP}\"
             )
 
