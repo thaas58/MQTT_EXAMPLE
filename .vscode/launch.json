@@ -23,6 +23,9 @@
                 "continue"
             ],
             "searchDir": ["C:/openocd/tcl"],
+            "openOCDLaunchCommands": [
+                "adapter speed 5000",
+            ],
             "showDevDebugOutput": "raw",
         },
         {
@@ -47,6 +50,9 @@
                 "continue"
             ],
             "searchDir": ["C:/openocd/tcl"],
+            "openOCDLaunchCommands": [
+                "adapter speed 5000",
+          ],
             "showDevDebugOutput": "raw",
         }
     ]
