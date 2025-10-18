@@ -112,18 +112,20 @@ mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t st
   if (status == MQTT_CONNECT_ACCEPTED) {
     LWIP_PLATFORM_DIAG(("MQTT client \"%s\"  MQTT Connect Accepted!\n", client_info->client_id));
     mqtt_sub_unsub(client,
-            "topic_qos1", 1,
-            mqtt_request_cb, LWIP_CONST_CAST(void*, client_info),
-            1);
+                   "topic_qos1", 1,
+                   mqtt_request_cb, LWIP_CONST_CAST(void *, client_info),
+                   1);
     mqtt_sub_unsub(client,
-            "topic_qos0", 0,
-            mqtt_request_cb, LWIP_CONST_CAST(void*, client_info),
-            1);
+                   "topic_qos0", 0,
+                   mqtt_request_cb, LWIP_CONST_CAST(void *, client_info),
+                   1);
 
+    mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb,
+                            mqtt_incoming_data_cb, LWIP_CONST_CAST(void *, client_info));
     mqtt_sub_unsub(client,
-            "topic/TEST_PUB", 0,
-            mqtt_incoming_publish_cb, LWIP_CONST_CAST(void*, client_info),
-            1);        
+                   "topic/TEST_PUB", 0,
+                   mqtt_request_cb, LWIP_CONST_CAST(void *, client_info),
+                   1);
   }
 }
 #endif /* LWIP_TCP */
