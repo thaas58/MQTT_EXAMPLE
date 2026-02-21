@@ -37,6 +37,8 @@ if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
             add_executable(mqtt_example
 	        mqtt_example.c
 	        mqtt_example.h
+            aht20.c
+            aht20.h
 	        lwipopts.h
             )
 
@@ -46,6 +48,9 @@ if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
             USER_NAME=\"${USER_NAME}\"
             USER_PW=\"${USER_PW}\"
             TEST_MQTT_SERVER_IP=\"${TEST_MQTT_SERVER_IP}\"
+            PICO_DEFAULT_I2C=0
+            PICO_DEFAULT_I2C_SDA_PIN=20
+            PICO_DEFAULT_I2C_SCL_PIN=21
             )
 
             target_include_directories(mqtt_example PRIVATE
@@ -54,6 +59,7 @@ if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
             )
 
             target_link_libraries(mqtt_example
+                hardware_i2c
                 pico_cyw43_arch_lwip_threadsafe_background 
                 pico_stdlib
                 pico_lwip_iperf

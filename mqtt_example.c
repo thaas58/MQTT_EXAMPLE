@@ -28,7 +28,10 @@
  *
  */
 #include "pico/cyw43_arch.h"
+#include "pico/binary_info.h"
 #include "pico/stdlib.h"
+#include "hardware/i2c.h"
+#include "aht20.h"
 
 #include "lwip/netif.h"
 #include "lwip/ip4_addr.h"
@@ -122,10 +125,9 @@ mqtt_connection_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t st
 
     mqtt_set_inpub_callback(client, mqtt_incoming_publish_cb,
                             mqtt_incoming_data_cb, LWIP_CONST_CAST(void *, client_info));
-    mqtt_sub_unsub(client,
+    mqtt_subscribe(client,
                    "topic/TEST_PUB", 0,
-                   mqtt_request_cb, LWIP_CONST_CAST(void *, client_info),
-                   1);
+                   mqtt_request_cb, LWIP_CONST_CAST(void *, client_info));
   }
 }
 #endif /* LWIP_TCP */
@@ -174,7 +176,31 @@ static void iperf_report(void *arg, enum lwiperf_report_type report_type,
 }
 
 int main() {
+    float humidity;
+    float temperature;
     stdio_init_all();
+#if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
+    #warning i2c a board with I2C pins
+        puts("Default I2C pins were not defined");
+    return 0;
+#else
+    // I2C is "open drain", pull ups to keep signal high when no data is being sent
+    i2c_init(i2c_default, 100 * 1000);
+    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
+    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+    if(aht20_i2c_init())
+    {
+        get_aht20_values(&humidity, &temperature);
+        printf("First read - humidity: %5.2f%%, temperature: %5.2f\n", humidity, temperature);
+    }
+    else
+    {
+        printf("I2C failed to initialize\n");
+        return 1;
+    }
+#endif
 
     if (cyw43_arch_init()) {
         printf("failed to initialise\n");
@@ -207,6 +233,8 @@ int main() {
 #endif
 
     while(true) {
+        humidity = 0;
+        temperature = 0;
         static uint32_t counter = 1;
 #if USE_LED
         static absolute_time_t led_time;
@@ -231,6 +259,8 @@ int main() {
           u8_t qos    = 2;
           u8_t retain = 0;
           mqtt_publish(mqtt_client, "topic/pico_w_test/counter", buffer, strlen(buffer), qos, retain, mqtt_request_cb, (void *)&mqtt_client_info);
+          get_aht20_values(&humidity, &temperature);
+          printf("\nhumidity: %5.2f%%, temperature: %5.2f\n", humidity, temperature);
         }
         // the following #ifdef is only here so this same example can be used in multiple modes;
         // you do not need it in your code
