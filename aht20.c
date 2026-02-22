@@ -3,6 +3,9 @@
  *
  *  Created on: May 19, 2022
  *      Author: PickleRix - Alien Firmware Engineer
+ *  Updated on: Februart 22, 2022
+ *      Author: PickleRix - Alien Firmware Engineer
+ * 		Update code for Raspberry Pi Pico support
  *
  * Code to support the AHT20 temperature/humidity sensor.
  *
