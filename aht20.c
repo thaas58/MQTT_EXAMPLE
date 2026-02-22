@@ -13,40 +13,41 @@
 
 #include "aht20.h"
 #include "hardware/i2c.h"
-//#include "semphr.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "mqtt_example.h"
 
-//#define cmdMAX_MUTEX_WAIT		pdMS_TO_TICKS( 300 )
+#define cmdMAX_MUTEX_WAIT pdMS_TO_TICKS( 300 )
 
-//static I2C_HandleTypeDef * AHT20_I2C_BUS_HANDLE;
 static float temperature_store = 0;
 static float humidity_store = 0;
-//static SemaphoreHandle_t storeMutex = NULL;
+static SemaphoreHandle_t storeMutex = NULL;
 
-static bool Set_Values(float humidity, float temperature)
+static bool set_aht20_values(float humidity, float temperature)
 {
 	bool status = false;
 
-	//if( xSemaphoreTake( storeMutex, cmdMAX_MUTEX_WAIT ) == pdPASS )
+	if(xSemaphoreTake( storeMutex, cmdMAX_MUTEX_WAIT ) == pdPASS)
 	{
 		humidity_store = humidity;
 		temperature_store = temperature;
 		/* Must ensure to give the mutex back. */
-		//xSemaphoreGive( storeMutex );
+		xSemaphoreGive( storeMutex );
 		status = true;
 	}
 	return(status);
 }
 
-bool Get_Values(float* humidity, float* temperature)
+bool get_aht20_values(float* humidity, float* temperature)
 {
 	bool status = false;
 
-	//if( xSemaphoreTake( storeMutex, cmdMAX_MUTEX_WAIT ) == pdPASS )
+	if( xSemaphoreTake( storeMutex, cmdMAX_MUTEX_WAIT ) == pdPASS )
 	{
 		*humidity = humidity_store;
 		*temperature = temperature_store;
 		/* Must ensure to give the mutex back. */
-		//xSemaphoreGive( storeMutex );
+		xSemaphoreGive( storeMutex );
 		status = true;
 	}
 	return(status);
@@ -57,20 +58,21 @@ bool aht20_i2c_init(void)
 	//HAL_StatusTypeDef hal_status = HAL_ERROR;
 	uint8_t command[3];
 	uint8_t status = 0;
+	/* Create the semaphore used to access stored humidity and temperature values. */
+	storeMutex = xSemaphoreCreateMutex();
+	configASSERT(storeMutex);
 
 	/* Create the semaphore used to access stored humidity and temperature values. */
-	//storeMutex = xSemaphoreCreateMutex();
-	//configASSERT( storeMutex );
 	//Delay for 40 milliseconds
-	sleep_ms(40);
+	osDelay(40);
 	while ((status = get_aht20_status()) & AHT20_STATUS_BUSY)
 	{
-		sleep_ms(10);
+		osDelay(10);
 	}
 
 	if(!(status & AHT20_STATUS_CALIBRATED))
 	{
-		sleep_ms(20);
+		osDelay(20);
 		command[0] = AHT20_CMD_CALIBRATE;
 		command[1] = 0x08;
 		command[2] = 0x00;
@@ -79,7 +81,7 @@ bool aht20_i2c_init(void)
 
 	while ((status = get_aht20_status()) & AHT20_STATUS_BUSY)
 	{
-		sleep_ms(10);
+		osDelay(10);
 	}
 
 	if(status == AHT20_STATUS_ERROR)
@@ -118,7 +120,7 @@ uint8_t get_aht20_status(void)
 	return(status);
 }
 
-bool get_aht20_values(float* humidity, float* temperature)
+bool read_aht20_values(float* humidity, float* temperature)
 {
 	float _humidity = 0;
 	float _temperature = 0;
@@ -130,10 +132,10 @@ bool get_aht20_values(float* humidity, float* temperature)
 	command[2] = 0x00;
 	send_aht20_data(command, 3);
 	// AHT20 datasheet says to wait at least 80 milliseconds for measurement.
-	sleep_ms(80);
+	osDelay(80);
 	while(get_aht20_status() & AHT20_STATUS_BUSY)
 	{
-		sleep_ms(10);
+		osDelay(10);
 	}
 
 	get_aht20_data(data, 6);
@@ -164,7 +166,6 @@ bool get_aht20_values(float* humidity, float* temperature)
 		*temperature = _temperature;
 	}
 
-	//Set_Values(_humidity, _temperature);
-
+	set_aht20_values(_humidity, _temperature);
 	return true;
 }

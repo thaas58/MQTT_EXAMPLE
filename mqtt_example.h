@@ -29,10 +29,17 @@
 
 #ifndef MQTT_EXAMPLE_H
 #define MQTT_EXAMPLE_H
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+* @brief   Wait for Timeout (Time Delay)
+* @param   millisec  time delay value
+*/
+void osDelay (uint32_t millisec);
 
 void mqtt_example_init(void);
 

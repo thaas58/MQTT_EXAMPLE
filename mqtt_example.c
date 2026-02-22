@@ -30,8 +30,13 @@
 #include "pico/cyw43_arch.h"
 #include "pico/binary_info.h"
 #include "pico/stdlib.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "hardware/i2c.h"
 #include "aht20.h"
+
 
 #include "lwip/netif.h"
 #include "lwip/ip4_addr.h"
@@ -52,12 +57,14 @@ u16_t mqtt_port = 1883;
  */
 #ifndef LWIP_MQTT_EXAMPLE_IPADDR_INIT
 #if LWIP_IPV4
-/*192.168.0.218 0xc0a800da LWIP_MQTT_EXAMPLE_IPADDR_INIT */
-#define LWIP_MQTT_EXAMPLE_IPADDR_INIT = IPADDR4_INIT(PP_HTONL(0xc0a800da))
+/*192.168.1.166 0xc0a800a6 LWIP_MQTT_EXAMPLE_IPADDR_INIT */
+#define LWIP_MQTT_EXAMPLE_IPADDR_INIT = IPADDR4_INIT(PP_HTONL(0xc0a801a6))
 #else
 #define LWIP_MQTT_EXAMPLE_IPADDR_INIT
 #endif
 #endif
+
+#define TEST_TASK_PRIORITY  (tskIDLE_PRIORITY + 1UL)
 
 static ip_addr_t mqtt_ip LWIP_MQTT_EXAMPLE_IPADDR_INIT;
 static mqtt_client_t* mqtt_client;
@@ -76,6 +83,17 @@ static const struct mqtt_connect_client_info_t mqtt_client_info =
   , NULL
 #endif
 };
+
+/**
+* @brief   Wait for Timeout (Time Delay)
+* @param   millisec      time delay value
+*/
+void osDelay (uint32_t millisec)
+{
+  TickType_t ticks = millisec / portTICK_PERIOD_MS;
+
+  vTaskDelay(ticks ? ticks : 1);          /* Minimum delay = 1 tick */
+}
 
 static void
 mqtt_incoming_data_cb(void *arg, const u8_t *data, u16_t len, u8_t flags)
@@ -154,35 +172,12 @@ mqtt_example_init(void)
 #endif /* LWIP_TCP */
 }
 
-#if CLIENT_TEST && !defined(IPERF_SERVER_IP)
-#error IPERF_SERVER_IP not defined
-#endif
-
-// Report IP results and exit
-static void iperf_report(void *arg, enum lwiperf_report_type report_type,
-                         const ip_addr_t *local_addr, u16_t local_port, const ip_addr_t *remote_addr, u16_t remote_port,
-                         u32_t bytes_transferred, u32_t ms_duration, u32_t bandwidth_kbitpsec) {
-    static uint32_t total_iperf_megabytes = 0;
-    uint32_t mbytes = bytes_transferred / 1024 / 1024;
-    float mbits = bandwidth_kbitpsec / 1000.0;
-
-    total_iperf_megabytes += mbytes;
-
-    printf("Completed iperf transfer of %d MBytes @ %.1f Mbits/sec\n", mbytes, mbits);
-    printf("Total iperf megabytes since start %d Mbytes\n", total_iperf_megabytes);
-#if CYW43_USE_STATS
-    printf("packets in %u packets out %u\n", CYW43_STAT_GET(PACKET_IN_COUNT), CYW43_STAT_GET(PACKET_OUT_COUNT));
-#endif
-}
-
-int main() {
-    float humidity;
-    float temperature;
-    stdio_init_all();
-#if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
+void main_task(__unused void *params)
+{
+#if (!defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN))
     #warning i2c a board with I2C pins
-        puts("Default I2C pins were not defined");
-    return 0;
+    puts("Default I2C pins were not defined");
+    return;
 #else
     // I2C is "open drain", pull ups to keep signal high when no data is being sent
     i2c_init(i2c_default, 100 * 1000);
@@ -192,92 +187,109 @@ int main() {
     gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
     if(aht20_i2c_init())
     {
-        get_aht20_values(&humidity, &temperature);
-        printf("First read - humidity: %5.2f%%, temperature: %5.2f\n", humidity, temperature);
+        read_aht20_values(NULL, NULL);
+        //printf("First read - humidity: %5.2f%%, temperature: %5.2f\n", humidity, temperature);
     }
     else
     {
         printf("I2C failed to initialize\n");
-        return 1;
+        return;
     }
-#endif
 
     if (cyw43_arch_init()) {
-        printf("failed to initialise\n");
-        return 1;
+        printf("failed to initialize\n");
+        return;
     }
+
     cyw43_arch_enable_sta_mode();
-    printf("Connecting to WiFi...\n");
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 34000)) {
+    printf("Connecting to Wi-Fi...\n");
+    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000))
+    {
         printf("failed to connect.\n");
-        return 1;
-    } else {
+        exit(1);
+    } else
+    {
         printf("Connected.\n");
-			
-        printf("mqtt_port = %d &mqtt_port 0x%x\n",mqtt_port,&mqtt_port);
-        printf("mqtt_ip = 0x%x &mqtt_ip = 0x%x\n",mqtt_ip,&mqtt_ip);
-        printf("IPADDR_LOOPBACK = 0x%x \n",IPADDR_LOOPBACK);
+        printf("mqtt_port = %d &mqtt_port 0x%x\n", mqtt_port, &mqtt_port);
+        printf("mqtt_ip = 0x%x &mqtt_ip = 0x%x\n", mqtt_ip, &mqtt_ip);
+        printf("IPADDR_LOOPBACK = 0x%x \n", IPADDR_LOOPBACK);
         mqtt_example_init();
     }
-
-#if CLIENT_TEST
-    printf("\nReady, running iperf client\n");
-    ip_addr_t clientaddr;
-    ip4_addr_set_u32(&clientaddr, ipaddr_addr(xstr(IPERF_SERVER_IP)));
-    assert(lwiperf_start_tcp_client_default(&clientaddr, &iperf_report, NULL) != NULL);
-#else
-    sleep_ms(10);
-    printf("\nReady, running iperf server at %s\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
-     
-    lwiperf_start_tcp_server_default(&iperf_report, NULL);
 #endif
 
-    while(true) {
-        humidity = 0;
-        temperature = 0;
-        static uint32_t counter = 1;
-#if USE_LED
-        static absolute_time_t led_time;
-        static int led_on = true;
-
-        // Invert the led
-        if (absolute_time_diff_us(get_absolute_time(), led_time) < 0) {
-            led_on = !led_on;
-            cyw43_gpio_set(&cyw43_state, 0, led_on);
-            led_time = make_timeout_time_ms(1000);
-
-            // Check we can read back the led value
-            bool actual_led_val = !led_on;
-            cyw43_gpio_get(&cyw43_state, 0, &actual_led_val);
-            assert(led_on == actual_led_val);
+    static uint32_t counter = 1;
+    static int led_on = true;
+    float humidity;
+    float temperature;
+    while(true)
+    {
+        led_on = !led_on;
+        cyw43_gpio_set(&cyw43_state, 0, led_on);
+        // Check we can read back the led value
+        bool actual_led_val = !led_on;
+        cyw43_gpio_get(&cyw43_state, 0, &actual_led_val);
+        assert(led_on == actual_led_val);
+        if((counter % 5) == 0)
+        {
+            //Read and store humidity and temperature values
+            read_aht20_values(NULL, NULL);
         }
-#endif
+
         if((counter % 10) == 0)
         {
-          char buffer[32];
-          sprintf(buffer, "%u", counter);
-          u8_t qos    = 2;
-          u8_t retain = 0;
-          mqtt_publish(mqtt_client, "topic/pico_w_test/counter", buffer, strlen(buffer), qos, retain, mqtt_request_cb, (void *)&mqtt_client_info);
-          get_aht20_values(&humidity, &temperature);
-          printf("\nhumidity: %5.2f%%, temperature: %5.2f\n", humidity, temperature);
+            char buffer[80];
+            sprintf(buffer, "%u", counter);
+            u8_t qos    = 2;
+            u8_t retain = 0;
+            mqtt_publish(mqtt_client, "topic/pico_w_test/counter", buffer, strlen(buffer), qos, retain, mqtt_request_cb, (void *)&mqtt_client_info);
+            // Get stored AHT20 values
+            get_aht20_values(&humidity, &temperature);
+            sprintf(buffer, "\nhumidity: %5.2f%%, temperature: %5.2f \u00B0C\n", humidity, temperature);
+            printf("%s", buffer);
+            mqtt_publish(mqtt_client, "topic/pico_w_test/humidity_temperature", buffer, strlen(buffer), qos, retain, mqtt_request_cb, (void *)&mqtt_client_info);
         }
-        // the following #ifdef is only here so this same example can be used in multiple modes;
-        // you do not need it in your code
-#if PICO_CYW43_ARCH_POLL
-        // if you are using pico_cyw43_arch_poll, then you must poll periodically from your
-        // main loop (not from a timer) to check for WiFi driver or lwIP work that needs to be done.
-        cyw43_arch_poll();
-        sleep_ms(1);
-#else
-        // if you are not using pico_cyw43_arch_poll, then WiFI driver and lwIP work
-        // is done via interrupt in the background. This sleep is just an example of some (blocking)
-        // work you might be doing.
-        sleep_ms(1000);
+        // not much to do as LED is in another task, and we're using RAW (callback) lwIP API
+        osDelay(1000);
         counter++;
-#endif
     }
-
     cyw43_arch_deinit();
+}
+
+void vLaunch( void) {
+    TaskHandle_t task;
+    xTaskCreate(main_task, "MainTaskThread", configMINIMAL_STACK_SIZE, NULL, TEST_TASK_PRIORITY, &task);
+
+#if NO_SYS && configUSE_CORE_AFFINITY && configNUMBER_OF_CORES > 1
+    // we must bind the main task to one core (well at least while the init is called)
+    // (note we only do this in NO_SYS mode, because cyw43_arch_freertos
+    // takes care of it otherwise)
+    vTaskCoreAffinitySet(task, 1);
+#endif
+
+    /* Start the tasks and timer running. */
+    vTaskStartScheduler();
+}
+
+int main() {
+    const char *rtos_name;
+    stdio_init_all();
+
+#if ( configNUMBER_OF_CORES > 1 )
+    rtos_name = "FreeRTOS SMP";
+#else
+    rtos_name = "FreeRTOS";
+#endif
+
+#if ( configNUMBER_OF_CORES == 2 )
+    printf("Starting %s on both cores:\n", rtos_name);
+    vLaunch();
+#elif ( RUN_FREERTOS_ON_CORE == 1 )
+    printf("Starting %s on core 1:\n", rtos_name);
+    multicore_launch_core1(vLaunch);
+    while (true);
+#else
+    printf("Starting %s on core 0:\n", rtos_name);
+    vLaunch();
+#endif
     return 0;
 }

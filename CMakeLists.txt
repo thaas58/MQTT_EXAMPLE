@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 
 # Pull in SDK (must be before project)
 include(pico_sdk_import.cmake)
+include(./FreeRTOS/FreeRTOS_Kernel_import.cmake)
 
 project(mqtt_example C CXX ASM)
 set(CMAKE_C_STANDARD 11)
@@ -55,8 +56,9 @@ if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
 
             target_include_directories(mqtt_example PRIVATE
                 ${CMAKE_CURRENT_LIST_DIR}
-                ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
+                ${CMAKE_CURRENT_LIST_DIR}/FreeRTOS
             )
+
 
             target_link_libraries(mqtt_example
                 hardware_i2c
@@ -64,6 +66,7 @@ if (PICO_CYW43_SUPPORTED) # set by BOARD=pico-w
                 pico_stdlib
                 pico_lwip_iperf
                 pico_lwip_mqtt
+                FreeRTOS-Kernel-Heap4 # FreeRTOS kernel and dynamic heap
             )
 
             pico_add_extra_outputs(mqtt_example)

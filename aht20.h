@@ -12,8 +12,7 @@
 extern "C" {
 #endif
 
-//#include "main.h"
-//#include "cmsis_os.h"
+#include "mqtt_example.h"
 #include "stdbool.h"
 #include "stdint.h"
 
@@ -36,9 +35,9 @@ extern "C" {
 #define AHT20_STATUS_CALIBRATED     0x08 // Calibrated Status bit
 #define AHT20_STATUS_ERROR		    ~(AHT20_STATUS_BUSY|AHT20_STATUS_CALIBRATED)
 
-bool Get_Values(float* humidity, float* temperature);
-bool aht20_i2c_init(void);
 bool get_aht20_values(float* humidity, float* temperature);
+bool aht20_i2c_init(void);
+bool read_aht20_values(float* humidity, float* temperature);
 uint8_t get_aht20_status(void);
 #ifdef __cplusplus
 }
